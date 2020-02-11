@@ -4,7 +4,7 @@ use amcl_wrapper::{
 };
 
 
-use rand::{RngCore, SeedableRng};
+use rand::SeedableRng;
 use rand_chacha::ChaChaRng;
 use std::collections::BTreeSet;
 use ursa::hash::{Input, VariableOutput, blake2::VarBlake2};
@@ -188,6 +188,7 @@ mod tests {
 
     #[test]
     fn determistic_generate() {
+        use rand::RngCore;
         let mut attributes = BTreeSet::new();
         attributes.insert("first_name".to_string());
         attributes.insert("last_name".to_string());
@@ -200,6 +201,22 @@ mod tests {
         let (pk, sk) = res.unwrap();
 
         generator = DeterministicGenerator::new(&attributes, None);
+        let res = generate_deterministically(&mut generator);
+        assert!(res.is_ok());
+        let (pk1, sk1) = res.unwrap();
+        assert_eq!(pk, pk1);
+        assert_eq!(sk, sk1);
+
+        //Use a secret entropy value, this is the real secret key
+        let mut rng = rand::thread_rng();
+        let mut seed = vec![0u8; 64];
+        rng.fill_bytes(seed.as_mut_slice());
+        generator = DeterministicGenerator::new(&attributes, Some(seed.as_slice()));
+        let res = generate_deterministically(&mut generator);
+        assert!(res.is_ok());
+        let (pk, sk) = res.unwrap();
+
+        generator = DeterministicGenerator::new(&attributes, Some(seed.as_slice()));
         let res = generate_deterministically(&mut generator);
         assert!(res.is_ok());
         let (pk1, sk1) = res.unwrap();
