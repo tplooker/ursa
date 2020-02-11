@@ -11,6 +11,7 @@ extern crate merlin;
 extern crate rand;
 extern crate rand_chacha;
 extern crate ursa;
+extern crate ffi_support;
 
 #[macro_use]
 pub mod commitments;
@@ -19,3 +20,4 @@ pub mod errors;
 pub mod signatures;
 #[cfg(feature = "ver_enc")]
 pub mod verifiable_encryption;
+pub mod ffi;

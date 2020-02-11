@@ -24,6 +24,7 @@ PS_Signature_G1 = []
 bulletproofs_amcl = { version = "0.1.0", path = "./bulletproofs_amcl" }
 criterion = "0.3"
 failure = "0.1"
+ffi-support = { version = "0.3.5" }
 lazy_static = "1.4"
 merlin = "1"
 rand = "0.7"

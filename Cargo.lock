@@ -46,7 +46,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cfd7e7ae3f9a1fb5c03b389fc6bb9a51400d0c13053f0dca698c832bfd893a0d"
 dependencies = [
  "block-cipher-trait",
- "byteorder 1.3.2",
+ "byteorder 1.3.4",
  "opaque-debug",
 ]
 
@@ -81,7 +81,7 @@ version = "0.1.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1197ef8bc569ac81c685ec1a655cc412eeca3b69b0784f3202cfc31f9089fcfe"
 dependencies = [
- "byteorder 1.3.2",
+ "byteorder 1.3.4",
  "lazy_static",
  "miracl_amcl",
  "rand 0.6.5",
@@ -98,7 +98,7 @@ version = "0.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0974eb4471489a1e1a40795e10a454d0af4f31929006591b5e6ac4026bb132b2"
 dependencies = [
- "byteorder 1.3.2",
+ "byteorder 1.3.4",
  "lazy_static",
  "miracl_amcl",
  "rand 0.7.3",
@@ -225,7 +225,7 @@ checksum = "c0940dc441f31689269e10ac70eb1002a3a1d3ad1390e030043662eb7fe4688b"
 dependencies = [
  "block-padding",
  "byte-tools",
- "byteorder 1.3.2",
+ "byteorder 1.3.4",
  "generic-array",
 ]
 
@@ -274,7 +274,7 @@ name = "bulletproofs_amcl"
 version = "0.1.0"
 dependencies = [
  "amcl_wrapper 0.2.3",
- "byteorder 1.3.2",
+ "byteorder 1.3.4",
  "criterion",
  "failure",
  "lazy_static",
@@ -287,9 +287,9 @@ dependencies = [
 
 [[package]]
 name = "bumpalo"
-version = "3.1.2"
+version = "3.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5fb8038c1ddc0a5f73787b130f4cc75151e96ed33e417fde765eb5a81e3532f4"
+checksum = "1f359dc14ff8911330a51ef78022d376f25ed00248912803b58f00cb1c27f742"
 
 [[package]]
 name = "byte-tools"
@@ -314,9 +314,9 @@ checksum = "29b2aa490a8f546381308d68fc79e6bd753cd3ad839f7a7172897f1feedfa175"
 
 [[package]]
 name = "byteorder"
-version = "1.3.2"
+version = "1.3.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a7c3dd8985a7111efc5c80b44e23ecdd8c007de8ade3b96595387e812b957cf5"
+checksum = "08c48aae112d48ed9f069b33538ea9e3e90aa263cfa3d1c24309612b1f7472de"
 
 [[package]]
 name = "bzip2"
@@ -616,7 +616,7 @@ version = "1.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8b7dcd30ba50cdf88b55b033456138b7c0ac4afdc436d82e1b79f370f24cc66d"
 dependencies = [
- "byteorder 1.3.2",
+ "byteorder 1.3.4",
  "clear_on_drop",
  "digest",
  "packed_simd",
@@ -819,9 +819,9 @@ dependencies = [
 
 [[package]]
 name = "hex"
-version = "0.4.0"
+version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "023b39be39e3a2da62a94feb433e91e8bcd37676fbc8bea371daf52b7a769a3e"
+checksum = "76cdda6bf525062a0c9e8f14ee2b37935c86b8efb6c8b69b3c83dfb518a914af"
 
 [[package]]
 name = "hmac"
@@ -919,9 +919,9 @@ dependencies = [
 
 [[package]]
 name = "libsecp256k1"
-version = "0.3.4"
+version = "0.3.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "df6edf84fd62aad1c93932b39324eaeda3912c1d26bc18dfaee6293848e49a50"
+checksum = "1fc1e2c808481a63dc6da2074752fdd4336a3c8fcc68b83db6f1fd5224ae7962"
 dependencies = [
  "arrayref",
  "crunchy",
@@ -994,7 +994,7 @@ version = "1.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2b0942b357c1b4d0dc43ba724674ec89c3218e6ca2b3e8269e7cb53bcecd2f6e"
 dependencies = [
- "byteorder 1.3.2",
+ "byteorder 1.3.4",
  "keccak",
  "rand_core 0.4.2",
  "zeroize 1.1.0",
@@ -1435,7 +1435,7 @@ version = "0.1.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "92b73c2a1770c255c240eaa4ee600df1704a38dc3feaa6e949e7fcd4f8dc09f9"
 dependencies = [
- "byteorder 1.3.2",
+ "byteorder 1.3.4",
 ]
 
 [[package]]
@@ -1452,12 +1452,9 @@ checksum = "4c691c0e608126e00913e33f0ccf3727d5fc84573623b8d65b2df340b5201783"
 
 [[package]]
 name = "rustc-hash"
-version = "1.0.1"
+version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7540fc8b0c49f096ee9c961cda096467dce8084bec6bdca2fc83895fd9b28cb8"
-dependencies = [
- "byteorder 1.3.2",
-]
+checksum = "08d43f7aa6b08d49f382cde6a7982047c3426db949b1424bc4b7ec9ae12c6ce2"
 
 [[package]]
 name = "rustc_version"
@@ -1556,9 +1553,9 @@ dependencies = [
 
 [[package]]
 name = "serde_json"
-version = "1.0.46"
+version = "1.0.47"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "21b01d7f0288608a01dca632cf1df859df6fd6ffa885300fc275ce2ba6221953"
+checksum = "15913895b61e0be854afd32fd4163fcd2a3df34142cf2cb961b310ce694cbf90"
 dependencies = [
  "itoa",
  "ryu",
@@ -2105,6 +2102,7 @@ dependencies = [
  "bulletproofs_amcl",
  "criterion",
  "failure",
+ "ffi-support",
  "lazy_static",
  "merlin",
  "rand 0.7.3",
