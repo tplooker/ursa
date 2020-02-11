@@ -3,10 +3,6 @@ use amcl_wrapper::{
     group_elem::GroupElement, group_elem_g1::G1, group_elem_g2::G2, types_g2::GroupG2_SIZE,
 };
 
-
-use rand::SeedableRng;
-use rand_chacha::ChaChaRng;
-use std::collections::BTreeSet;
 use ursa::hash::{Input, VariableOutput, blake2::VarBlake2};
 
 use crate::errors::prelude::*;
@@ -73,50 +69,30 @@ impl PublicKey {
             Ok(())
         }
     }
-}
 
-pub struct DeterministicGenerator {
-    attributes: BTreeSet<String>,
-    rng: ChaChaRng
-}
-
-impl DeterministicGenerator {
-    pub fn new(attributes: &BTreeSet<String>, entropy: Option<&[u8]>) -> Self {
-        let mut hasher = VarBlake2::new(32).unwrap();
-        // Domain separation
-        hasher.input(b"bbs+ deterministric generator");
-        if let Some(e) = entropy {
-            hasher.input(e);
-        }
-        for a in attributes {
-            hasher.input(a.as_bytes());
-        }
-        let mut seed = [0u8; 32];
-        hasher.variable_result(|res| {
-            seed.copy_from_slice(res);
-        });
-        let rng = ChaChaRng::from_seed(seed);
-        Self {
-            attributes: attributes.clone(),
-            rng
+    pub fn generate(attributes: &[&str], option: KeyGenOptions) -> Result<Self, BBSError> {
+        match option {
+            KeyGenOptions::FromCommitment(w) => generate_public_key_from_commitment(attributes, &w),
+            KeyGenOptions::FromSecretKey(s) => generate_public_key_from_private_key(attributes, &s)
         }
     }
 }
 
-/// Create a new BBS+ keypair using a `DeterministicGenerator`
-pub fn generate_deterministically(generator: &mut DeterministicGenerator) -> Result<(PublicKey, SecretKey), BBSError> {
-    let secret = SecretKey::random_using_rng(&mut generator.rng);
+#[derive(Debug)]
+pub enum KeyGenOptions {
+    FromSecretKey(SecretKey),
+    FromCommitment(G2)
+}
 
+/// Used to generate the public key when the private key is unknown
+fn generate_public_key_from_commitment(attributes: &[&str], w: &G2) -> Result<PublicKey, BBSError> {
     let mut hasher = VarBlake2::new(FieldElement_SIZE).unwrap();
-    let w = &G2::generator() * &secret;
+
     hasher.input(w.to_bytes().as_slice());
     let mut h = Vec::new();
-    for a in &generator.attributes {
-        let f_r = FieldElement::random_using_rng(&mut generator.rng);
-        let mut h_i = G1::generator().scalar_mul_const_time(&f_r);
-
+    for a in attributes {
         let f_h = FieldElement::from_msg_hash(a.as_bytes());
-        h_i = h_i.scalar_mul_const_time(&f_h);
+        let h_i = G1::generator().scalar_mul_const_time(&f_h);
         hasher.input(h_i.to_bytes().as_slice());
         h.push(h_i);
     }
@@ -124,18 +100,21 @@ pub fn generate_deterministically(generator: &mut DeterministicGenerator) -> Res
     hasher.variable_result(|res| {
         hash.copy_from_slice(res);
     });
-    let mut h0 = G1::generator().scalar_mul_const_time(&FieldElement::random_using_rng(&mut generator.rng));
+    let h0 = G1::generator().scalar_mul_const_time(&FieldElement::from_msg_hash(&hash[..]));
 
-    let f_hash = FieldElement::from_bytes(&hash[..]).map_err(|_| BBSError::from_kind(BBSErrorKind::KeyGenError))?;
-    h0 = h0.scalar_mul_const_time(&f_hash);
-    Ok((
+    Ok(
         PublicKey {
-            w,
+            w: w.clone(),
             h0,
             h,
         },
-        secret)
     )
+}
+
+/// Generate the public key when only the private key is known
+fn generate_public_key_from_private_key(attributes: &[&str], secret: &FieldElement) -> Result<PublicKey, BBSError> {
+    let w = &G2::generator() * secret;
+    generate_public_key_from_commitment(attributes, &w)
 }
 
 /// Create a new BBS+ keypair
@@ -188,39 +167,38 @@ mod tests {
 
     #[test]
     fn determistic_generate() {
-        use rand::RngCore;
-        let mut attributes = BTreeSet::new();
-        attributes.insert("first_name".to_string());
-        attributes.insert("last_name".to_string());
-        attributes.insert("date_of_birth".to_string());
-        attributes.insert("gender".to_string());
-        let mut generator = DeterministicGenerator::new(&attributes, None);
+        let mut attributes = Vec::new();
+        attributes.push("first_name");
+        attributes.push("last_name");
+        attributes.push("date_of_birth");
+        attributes.push("gender");
 
-        let res = generate_deterministically(&mut generator);
-        assert!(res.is_ok());
-        let (pk, sk) = res.unwrap();
+        let secret = SecretKey::random();
 
-        generator = DeterministicGenerator::new(&attributes, None);
-        let res = generate_deterministically(&mut generator);
+        let res = generate_public_key_from_private_key(attributes.as_slice(), &secret);
         assert!(res.is_ok());
-        let (pk1, sk1) = res.unwrap();
+        let pk = res.unwrap();
+
+        let res = generate_public_key_from_private_key(attributes.as_slice(), &secret);
+        assert!(res.is_ok());
+        let pk1 = res.unwrap();
         assert_eq!(pk, pk1);
-        assert_eq!(sk, sk1);
 
-        //Use a secret entropy value, this is the real secret key
-        let mut rng = rand::thread_rng();
-        let mut seed = vec![0u8; 64];
-        rng.fill_bytes(seed.as_mut_slice());
-        generator = DeterministicGenerator::new(&attributes, Some(seed.as_slice()));
-        let res = generate_deterministically(&mut generator);
-        assert!(res.is_ok());
-        let (pk, sk) = res.unwrap();
+        let w = &G2::generator() * &secret;
 
-        generator = DeterministicGenerator::new(&attributes, Some(seed.as_slice()));
-        let res = generate_deterministically(&mut generator);
+        let res = generate_public_key_from_commitment(attributes.as_slice(), &w);
         assert!(res.is_ok());
-        let (pk1, sk1) = res.unwrap();
+        let pk1 = res.unwrap();
         assert_eq!(pk, pk1);
-        assert_eq!(sk, sk1);
+
+        let res = PublicKey::generate(attributes.as_slice(), KeyGenOptions::FromSecretKey(secret));
+        assert!(res.is_ok());
+        let pk1 = res.unwrap();
+        assert_eq!(pk, pk1);
+
+        let res = PublicKey::generate(attributes.as_slice(), KeyGenOptions::FromCommitment(w));
+        assert!(res.is_ok());
+        let pk1 = res.unwrap();
+        assert_eq!(pk, pk1);
     }
 }
