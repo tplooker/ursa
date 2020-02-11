@@ -8,3 +8,6 @@ pub use sha2::Digest;
 
 #[cfg(feature = "blake2")]
 pub mod blake2;
+#[cfg(feature = "blake2")]
+pub use blake2::digest::{Input, VariableOutput};
+

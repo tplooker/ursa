@@ -1,7 +1,13 @@
 use amcl_wrapper::{
-    constants::GroupG1_SIZE, errors::SerzDeserzError, field_elem::FieldElement,
+    constants::{FieldElement_SIZE, GroupG1_SIZE}, errors::SerzDeserzError, field_elem::FieldElement,
     group_elem::GroupElement, group_elem_g1::G1, group_elem_g2::G2, types_g2::GroupG2_SIZE,
 };
+
+
+use rand::{RngCore, SeedableRng};
+use rand_chacha::ChaChaRng;
+use std::collections::BTreeSet;
+use ursa::hash::{Input, VariableOutput, blake2::VarBlake2};
 
 use crate::errors::prelude::*;
 
@@ -69,6 +75,69 @@ impl PublicKey {
     }
 }
 
+pub struct DeterministicGenerator {
+    attributes: BTreeSet<String>,
+    rng: ChaChaRng
+}
+
+impl DeterministicGenerator {
+    pub fn new(attributes: &BTreeSet<String>, entropy: Option<&[u8]>) -> Self {
+        let mut hasher = VarBlake2::new(32).unwrap();
+        // Domain separation
+        hasher.input(b"bbs+ deterministric generator");
+        if let Some(e) = entropy {
+            hasher.input(e);
+        }
+        for a in attributes {
+            hasher.input(a.as_bytes());
+        }
+        let mut seed = [0u8; 32];
+        hasher.variable_result(|res| {
+            seed.copy_from_slice(res);
+        });
+        let rng = ChaChaRng::from_seed(seed);
+        Self {
+            attributes: attributes.clone(),
+            rng
+        }
+    }
+}
+
+/// Create a new BBS+ keypair using a `DeterministicGenerator`
+pub fn generate_deterministically(generator: &mut DeterministicGenerator) -> Result<(PublicKey, SecretKey), BBSError> {
+    let secret = SecretKey::random_using_rng(&mut generator.rng);
+
+    let mut hasher = VarBlake2::new(FieldElement_SIZE).unwrap();
+    let w = &G2::generator() * &secret;
+    hasher.input(w.to_bytes().as_slice());
+    let mut h = Vec::new();
+    for a in &generator.attributes {
+        let f_r = FieldElement::random_using_rng(&mut generator.rng);
+        let mut h_i = G1::generator().scalar_mul_const_time(&f_r);
+
+        let f_h = FieldElement::from_msg_hash(a.as_bytes());
+        h_i = h_i.scalar_mul_const_time(&f_h);
+        hasher.input(h_i.to_bytes().as_slice());
+        h.push(h_i);
+    }
+    let mut hash = [0u8; FieldElement_SIZE];
+    hasher.variable_result(|res| {
+        hash.copy_from_slice(res);
+    });
+    let mut h0 = G1::generator().scalar_mul_const_time(&FieldElement::random_using_rng(&mut generator.rng));
+
+    let f_hash = FieldElement::from_bytes(&hash[..]).map_err(|_| BBSError::from_kind(BBSErrorKind::KeyGenError))?;
+    h0 = h0.scalar_mul_const_time(&f_hash);
+    Ok((
+        PublicKey {
+            w,
+            h0,
+            h,
+        },
+        secret)
+    )
+}
+
 /// Create a new BBS+ keypair
 pub fn generate(message_count: usize) -> Result<(PublicKey, SecretKey), BBSError> {
     if message_count == 0 {
@@ -115,5 +184,26 @@ mod tests {
         //Check serialization is working
         let public_key_2 = PublicKey::from_bytes(bytes.as_slice()).unwrap();
         assert_eq!(public_key_2, public_key);
+    }
+
+    #[test]
+    fn determistic_generate() {
+        let mut attributes = BTreeSet::new();
+        attributes.insert("first_name".to_string());
+        attributes.insert("last_name".to_string());
+        attributes.insert("date_of_birth".to_string());
+        attributes.insert("gender".to_string());
+        let mut generator = DeterministicGenerator::new(&attributes, None);
+
+        let res = generate_deterministically(&mut generator);
+        assert!(res.is_ok());
+        let (pk, sk) = res.unwrap();
+
+        generator = DeterministicGenerator::new(&attributes, None);
+        let res = generate_deterministically(&mut generator);
+        assert!(res.is_ok());
+        let (pk1, sk1) = res.unwrap();
+        assert_eq!(pk, pk1);
+        assert_eq!(sk, sk1);
     }
 }

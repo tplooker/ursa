@@ -9,6 +9,8 @@ extern crate serde_json;
 extern crate bulletproofs_amcl as bulletproofs;
 extern crate merlin;
 extern crate rand;
+extern crate rand_chacha;
+extern crate ursa;
 
 #[macro_use]
 pub mod commitments;
