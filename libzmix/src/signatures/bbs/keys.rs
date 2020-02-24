@@ -73,15 +73,35 @@ impl PublicKey {
     pub fn generate(attributes: &[&str], option: KeyGenOptions) -> Result<Self, BBSError> {
         match option {
             KeyGenOptions::FromCommitment(w) => generate_public_key_from_commitment(attributes, &w),
+            KeyGenOptions::FromRawCommitment(rawCommitment) => {
+                let w = G2::from_bytes(rawCommitment.as_slice()).unwrap();
+                generate_public_key_from_commitment(attributes, &w)
+            },
             KeyGenOptions::FromSecretKey(s) => generate_public_key_from_private_key(attributes, &s)
         }
+    }
+
+    pub fn generate_from_count(message_count: usize, option: KeyGenOptions) -> Result<Self, BBSError> {
+        match option {
+            KeyGenOptions::FromCommitment(w) => generate_public_key_from_commitment_and_no_of_messages(message_count, &w),
+            KeyGenOptions::FromRawCommitment(rawCommitment) => {
+                let w = G2::from_bytes(rawCommitment.as_slice()).unwrap();
+                generate_public_key_from_commitment_and_no_of_messages(message_count, &w)
+            },
+            KeyGenOptions::FromSecretKey(s) => generate_public_key_from_private_key_and_no_of_messages(message_count, &s)
+        }
+    }
+
+    pub fn generate_key() -> Result<(Self, SecretKey), BBSError> {
+        return generate_key();
     }
 }
 
 #[derive(Debug)]
 pub enum KeyGenOptions {
     FromSecretKey(SecretKey),
-    FromCommitment(G2)
+    FromCommitment(G2),
+    FromRawCommitment(Vec<u8>),
 }
 
 /// Used to generate the public key when the private key is unknown
@@ -117,6 +137,69 @@ fn generate_public_key_from_private_key(attributes: &[&str], secret: &FieldEleme
     generate_public_key_from_commitment(attributes, &w)
 }
 
+fn generate_public_key_from_commitment_and_no_of_messages(message_count: usize, w: &G2) -> Result<PublicKey, BBSError> {
+    //Derive h0 = HASH(pubKey + 1);
+    const h0_index: u8 = 1;
+    let mut hasher = VarBlake2::new(FieldElement_SIZE).unwrap();
+    hasher.input(w.to_bytes().as_slice());
+    hasher.input(h0_index.to_be_bytes());
+    let mut h0hash = [0u8; FieldElement_SIZE];
+    hasher.variable_result(|res| {
+        h0hash.copy_from_slice(res);
+    });
+    let h0 = G1::generator().scalar_mul_const_time(&FieldElement::from_msg_hash(&h0hash[..]));
+
+    //Derive h_0..h_i where i == message_count
+    let mut h = Vec::new();
+    for i in 2..message_count+2 {
+        let mut attribute_hasher = VarBlake2::new(FieldElement_SIZE).unwrap();
+        attribute_hasher.input(w.to_bytes().as_slice());
+        attribute_hasher.input(i.to_be_bytes());
+        let mut attribute_hash = [0u8; FieldElement_SIZE];
+        attribute_hasher.variable_result(|res| {
+            attribute_hash.copy_from_slice(res);
+        });
+        let f_h = FieldElement::from_msg_hash(&attribute_hash[..]);
+        h.push(G1::generator().scalar_mul_const_time(&f_h));
+    }
+
+    Ok(
+        PublicKey {
+            w: w.clone(),
+            h0,
+            h,
+        },
+    )
+}
+
+fn generate_public_key_from_private_key_and_no_of_messages(message_count: usize, secret: &FieldElement) -> Result<PublicKey, BBSError> {
+    if message_count == 0 {
+        return Err(BBSError::from_kind(BBSErrorKind::KeyGenError));
+    }
+
+    //create public key
+    let w = &G2::generator() * secret;
+
+    generate_public_key_from_commitment_and_no_of_messages(message_count, &w)
+}
+
+/// Create a new BBS+ keypair
+pub fn generate_key() -> Result<(PublicKey, SecretKey), BBSError> {
+    let secret = FieldElement::random();
+
+    // Super paranoid could allow a context to generate the generator from a well known value
+    // Not doing this for now since any generator in a prime field should be okay.
+    let w = &G2::generator() * &secret;
+    Ok((
+        PublicKey {
+            w,
+            h0: G1::random(), //TODO need to discuss
+            h: [G1::random()].to_vec()  //TODO need to discuss
+        },
+        secret,
+    ))
+}
+
 /// Create a new BBS+ keypair
 pub fn generate(message_count: usize) -> Result<(PublicKey, SecretKey), BBSError> {
     if message_count == 0 {
@@ -145,9 +228,8 @@ pub fn generate(message_count: usize) -> Result<(PublicKey, SecretKey), BBSError
 mod tests {
     use super::*;
 
-    #[test]
     fn key_generate() {
-        let res = generate(0);
+        let res = generate_key();
         assert!(res.is_err());
         //Check to make sure key has correct size
         let (public_key, _) = generate(1).unwrap();
@@ -197,6 +279,38 @@ mod tests {
         assert_eq!(pk, pk1);
 
         let res = PublicKey::generate(attributes.as_slice(), KeyGenOptions::FromCommitment(w));
+        assert!(res.is_ok());
+        let pk1 = res.unwrap();
+        assert_eq!(pk, pk1);
+    }
+
+    #[test]
+    fn determistic_generate_1() {
+        let secret = SecretKey::random();
+        let msg_count = 10;
+
+        let res = generate_public_key_from_private_key_and_no_of_messages(msg_count, &secret);
+        assert!(res.is_ok());
+        let pk = res.unwrap();
+
+        let res = generate_public_key_from_private_key_and_no_of_messages(msg_count, &secret);
+        assert!(res.is_ok());
+        let pk1 = res.unwrap();
+        assert_eq!(pk, pk1);
+
+        let w = &G2::generator() * &secret;
+
+        let res = generate_public_key_from_commitment_and_no_of_messages(msg_count, &w);
+        assert!(res.is_ok());
+        let pk1 = res.unwrap();
+        assert_eq!(pk, pk1);
+
+        let res = PublicKey::generate_from_count(msg_count, KeyGenOptions::FromSecretKey(secret));
+        assert!(res.is_ok());
+        let pk1 = res.unwrap();
+        assert_eq!(pk, pk1);
+
+        let res = PublicKey::generate_from_count(msg_count, KeyGenOptions::FromCommitment(w));
         assert!(res.is_ok());
         let pk1 = res.unwrap();
         assert_eq!(pk, pk1);

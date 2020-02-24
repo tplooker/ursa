@@ -6,6 +6,7 @@ use errors::prelude::*;
 use ffi_support::ByteBuffer;
 use std::os::raw::c_char;
 
+use errors::prelude::*;
 /// Used for receiving a ByteBuffer from C that was allocated by either C or Rust.
 /// If Rust allocated, then the outgoing struct is ffi_support::ByteBuffer
 /// Caller is responsible for calling free where applicable.
@@ -83,8 +84,8 @@ impl From<ByteBuffer> for ByteArray {
     }
 }
 
-define_bytebuffer_destructor!(ursa_bytebuffer_free);
-define_string_destructor!(ursa_string_free);
+//define_bytebuffer_destructor!(ursa_bytebuffer_free);
+//define_string_destructor!(ursa_string_free);
 
 #[derive(Debug, PartialEq, Copy, Clone)]
 #[repr(usize)]
@@ -149,31 +150,4 @@ pub enum ErrorCode {
 
     // Proof rejected
     AnoncredsProofRejected = 118,
-}
-
-/// Get details for last occurred error.
-///
-/// NOTE: Error is stored until the next one occurs.
-///       Returning pointer has the same lifetime.
-///
-/// #Params
-/// * `error_json_p` - Reference that will contain error details (if any error has occurred before)
-///  in the format:
-/// {
-///     "backtrace": Optional<str> - error backtrace.
-///         Collecting of backtrace can be enabled by setting environment variable `RUST_BACKTRACE=1`
-///     "message": str - human-readable error description
-/// }
-///
-#[no_mangle]
-pub extern "C" fn zmix_get_current_error(error_json_p: *mut *const c_char) {
-    trace!(
-        "ursa_get_current_error >>> error_json_p: {:?}",
-        error_json_p
-    );
-
-    let error = get_current_error_c_json();
-    unsafe { *error_json_p = error };
-
-    trace!("ursa_get_current_error: <<<");
 }
